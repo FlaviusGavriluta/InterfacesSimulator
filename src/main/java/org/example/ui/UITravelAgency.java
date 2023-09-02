@@ -14,6 +14,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class UITravelAgency {
+
     public void run() {
 
         List<Location> locations = new ArrayList<>();
@@ -40,33 +41,24 @@ public class UITravelAgency {
             travelPackages.add(new WinterPackage(location.getName(), location.getInitialCost()));
         });
 
-        // prima metoda de sortare
-        Collections.sort(travelPackages, Comparator.comparing(TravelPackage::getInitialCost).thenComparing(TravelPackage::getDestination));
-        // a doua metoda de sortare
-        Comparator<TravelPackage> sortedByCostThenName = Comparator.comparing(TravelPackage::getInitialCost).thenComparing(TravelPackage::getDestination);
-        travelPackages.sort(sortedByCostThenName.reversed());
-
+        sortedList(travelPackages, Comparator.comparing(TravelPackage::getInitialCost).thenComparing(TravelPackage::getDestination));
         System.out.println("Sorted Travel Packages by Initial Cost:");
         travelPackages.forEach(System.out::println);
+        System.out.println("-----------------------------");
 
         Predicate<Location> isPopular = location -> location.getPopularity() > 7;
-
-        List<Location> popularLocations = locations.stream()
-                .filter(isPopular)
-                .sorted(Comparator.comparing(Location::getPopularity)
-                        .thenComparing(Location::getInitialCost)
-                        .thenComparing(Location::getName))
-                .collect(Collectors.toList());
-
-        System.out.println("-----------------------------");
+        Comparator<Location> locationComparator = Comparator.comparing(Location::getPopularity).thenComparing(Location::getInitialCost).thenComparing(Location::getName);
+        List<Location> popularLocations = filterAndSort(locations, isPopular, locationComparator);
         popularLocations.forEach(System.out::println);
+        System.out.println("-----------------------------");
+
 
         Predicate<Person> isSenior = person -> person.getAge() > 59;
         Predicate<Person> isYouth = person -> person.getAge() > 17 && person.getAge() < 26;
         Comparator<Person> sortedByAgeThenName = Comparator.comparing(Person::getAge).thenComparing(Person::getName);
 
-        List<Person> seniors = clients.stream().filter(isSenior).sorted(sortedByAgeThenName).collect(Collectors.toList());
-        List<Person> youths = clients.stream().filter(isYouth).sorted(sortedByAgeThenName).collect(Collectors.toList());
+        List<Person> seniors = filterAndSort(clients, isSenior, sortedByAgeThenName);
+        List<Person> youths = filterAndSort(clients, isYouth, sortedByAgeThenName);
 
         System.out.println("-----------------------------");
         seniors.forEach(System.out::println);
@@ -77,20 +69,25 @@ public class UITravelAgency {
         Discountable seniorDiscount = new SeniorDiscount();
         Discountable youthDiscount = new YouthDiscount();
 
-        youths.forEach(client -> {
-            travelPackages.forEach(travelPackage -> {
-                double discountedCost = travelPackage.getDiscounted(youthDiscount, client.getAge());
-                System.out.println(travelPackage.getDestination()
-                        + "(" + travelPackage.getInitialCost() + "): "
-                        + client.getName() + " - " + discountedCost);
-            });
-        });
+        applyDiscounts(youths, travelPackages, new YouthDiscount());
+        applyDiscounts(seniors, travelPackages, new SeniorDiscount());
+    }
 
-        System.out.println("-----------------------------");
+    public <T> void sortedList(List<T> list, Comparator<T> comparator) {
+        list.sort(comparator);
+    }
 
-        seniors.forEach(client -> {
+    public <T> List<T> filterAndSort(List<T> list, Predicate<T> predicate, Comparator<T> comparator) {
+        return list.stream()
+                .filter(predicate)
+                .sorted(comparator)
+                .collect(Collectors.toList());
+    }
+
+    public void applyDiscounts(List<Person> clients, List<TravelPackage> travelPackages, Discountable discountStrategy) {
+        clients.forEach(client -> {
             travelPackages.forEach(travelPackage -> {
-                double discountedCost = travelPackage.getDiscounted(seniorDiscount, client.getAge());
+                double discountedCost = travelPackage.getDiscounted(discountStrategy, client.getAge());
                 System.out.println(travelPackage.getDestination()
                         + "(" + travelPackage.getInitialCost() + "): "
                         + client.getName() + " - " + discountedCost);
